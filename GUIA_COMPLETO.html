@@ -1,0 +1,435 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ELO Novo Mundo — Guia completo</title><style>body{max-width:1000px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui;color:#162d50}h1,h2,h3{line-height:1.2}h2{margin-top:48px}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:10px;border:1px solid #dbe3ef;text-align:left}th{background:#edf2fa}pre{padding:20px;overflow:auto;background:#f1f5fb;border-radius:12px}a{color:#2165db}code{font-size:.9em}@media print{body{margin:0}pre{white-space:pre-wrap}}</style><a href="COMECE_POR_AQUI.html">← Kit visual ELO Novo Mundo</a><h1>Plataforma pedagógica: arquitetura, bancos e instalação</h1>
+<p>Preparado para Gabriel em 14/10/2026. Fontes oficiais consultadas nessa data. Valores em dólar, sem conversão cambial, impostos ou promessa de gratuidade permanente.</p>
+<h2>1. Qual caminho escolher</h2>
+<p>Minha recomendação para começar é <strong>GitHub + React/Vite + Firebase Authentication + Firestore + Cloud Functions + Firebase Hosting</strong>, pela continuidade com seus aplicativos Firebase. Se a prioridade for cruzar muitos cadastros, gerar relatórios SQL e integrar sistemas administrativos, <strong>Supabase/PostgreSQL</strong> merece ser a escolha inicial. Não é preciso adotar três bancos ao mesmo tempo.</p>
+<table>
+<thead>
+<tr>
+<th>Opção</th>
+<th>Quando faz sentido</th>
+<th>Vantagem neste projeto</th>
+<th>Atenção</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Firebase / Firestore</td>
+<td>Aproveitar o ecossistema já usado nos apps</td>
+<td>Login e documentos, com biblioteca web integrada</td>
+<td>Modelagem sem joins tradicionais; leituras, índices e listeners afetam custo</td>
+</tr>
+<tr>
+<td>Supabase / PostgreSQL</td>
+<td>Relações entre alunos, matrículas, turmas e relatórios</td>
+<td>SQL, chaves estrangeiras e segurança por linha</td>
+<td>Políticas RLS e operações transacionais precisam ser bem implementadas</td>
+</tr>
+<tr>
+<td>Neon / PostgreSQL</td>
+<td>Controlar o backend e o modelo relacional</td>
+<td>PostgreSQL gerenciado com ambientes/branches</td>
+<td>Selecionar e configurar os componentes de aplicação e identidade</td>
+</tr>
+</tbody></table>
+<p>Essas três opções são bancos/serviços externos. <strong>GitHub guarda versões do código. GitHub Pages serve arquivos estáticos. Nenhum deles substitui o banco da escola.</strong> O frontend pode ser público e ainda assim exigir autenticação para acessar dados, mas nenhum dado privado deve estar embutido no HTML, JavaScript ou repositório.</p>
+<p>Referências: <a href="https://firebase.google.com/docs/firestore">Firestore</a>, <a href="https://supabase.com/docs/guides/database/overview">Supabase Database</a>, <a href="https://neon.com/docs/get-started/signing-up">Neon Console</a>, <a href="https://docs.github.com/en/pages">GitHub Pages</a>.</p>
+<h2>2. Arquitetura proposta para uso institucional</h2>
+<p>O navegador recebe apenas a interface e as configurações públicas. O login emite identidade; o backend verifica vínculo ativo, escola, função, turma e expiração antes de executar operações. Os arquivos ficam em armazenamento próprio para documentos. Métricas são consultadas por uma função administrativa, sem expor credenciais do Google Cloud.</p>
+<table>
+<thead>
+<tr>
+<th>Camada</th>
+<th>Escolha Firebase</th>
+<th>Alternativa PostgreSQL</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Código</td>
+<td>Repositório GitHub privado</td>
+<td>Mesmo modelo</td>
+</tr>
+<tr>
+<td>Interface</td>
+<td>React + Vite + TypeScript</td>
+<td>Mesmo modelo</td>
+</tr>
+<tr>
+<td>Hospedagem</td>
+<td>Firebase Hosting</td>
+<td>Serviço de frontend escolhido pela escola</td>
+</tr>
+<tr>
+<td>Login</td>
+<td>Firebase Authentication</td>
+<td>Supabase Auth ou provedor configurado no backend</td>
+</tr>
+<tr>
+<td>API e regras de negócio</td>
+<td>Cloud Functions</td>
+<td>API/Edge Functions/serviço próprio</td>
+</tr>
+<tr>
+<td>Dados estruturados</td>
+<td>Firestore</td>
+<td>PostgreSQL Supabase ou Neon</td>
+</tr>
+<tr>
+<td>Anexos</td>
+<td>Drive ou Cloud Storage</td>
+<td>Storage do provedor ou Drive</td>
+</tr>
+<tr>
+<td>IA</td>
+<td>Backend → OpenAI API</td>
+<td>Mesmo princípio</td>
+</tr>
+<tr>
+<td>Consumo</td>
+<td>Backend → Cloud Monitoring</td>
+<td>Backend → consultas SQL e métricas do provedor</td>
+</tr>
+</tbody></table>
+<h3>Entidades e relações</h3>
+<ul>
+<li><code>schools</code>: identidade e configurações da escola.</li>
+<li><code>users</code>: identidade estável vinculada ao provedor de autenticação.</li>
+<li><code>memberships</code>: usuário, escola, função, segmentos, turmas e vigência.</li>
+<li><code>classes</code>: turma, segmento, ano letivo e disciplinas.</li>
+<li><code>students</code>: cadastro estável, separado das matrículas anuais.</li>
+<li><code>enrollments</code>: aluno + turma + início + fim. Transferir não apaga o passado.</li>
+<li><code>plans</code>: autoria, turma, data, estado e versão corrente.</li>
+<li><code>planVersions</code>: snapshots imutáveis de cada envio/revisão/aprovação.</li>
+<li><code>planComments</code>: comentário, autor, campo e versão.</li>
+<li><code>lessons</code>: turma, data, horário e plano vinculado; conteúdo realizado separado do planejado.</li>
+<li><code>attendance</code>: aula + matrícula + marcação. Ausente de registro não é falta.</li>
+<li><code>attendanceCorrections</code>: valor anterior, novo valor, motivo e responsável.</li>
+<li><code>messages</code> / <code>acknowledgements</code>: comunicado e ciência explícita por destinatário.</li>
+<li><code>documents</code>: referência do arquivo, proprietário e escopo de acesso.</li>
+<li><code>integrationEvents</code>: identificador idempotente, origem, destino, tentativa e resultado.</li>
+<li><code>auditEvents</code>: alterações relevantes, sem armazenar tokens e senhas.</li>
+<li><code>infraSnapshots</code>: métricas e instante da coleta, sem nomes de alunos.</li>
+</ul>
+<p>No Firestore, a organização recomendada é <code>schools/{schoolId}/classes/{classId}</code>, e coleções equivalentes para as demais entidades. IDs de frequência e aula devem ser determinísticos quando representarem a mesma ocorrência. Aprovar plano, concluir chamada e corrigir registro exigem transações.</p>
+<p><strong>O piloto incluído não usa essa modelagem institucional completa.</strong> Ele guarda o ambiente de cada administrador em <code>pilotWorkspaces/{uid}</code>, com controle de revisão e teto de 700.000 bytes. É uma implementação para validar interação e regras. Migrar para coleções/tabelas por entidade é obrigatório antes de escalar para a escola.</p>
+<h3>Matriz de acesso planejada</h3>
+<table>
+<thead>
+<tr>
+<th>Perfil</th>
+<th>Pode atuar</th>
+<th>Não recebe automaticamente</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Administrador</td>
+<td>Usuários, configurações e infraestrutura</td>
+<td>Conteúdo sensível sem concessão pedagógica específica</td>
+</tr>
+<tr>
+<td>Direção</td>
+<td>Indicadores e escopos institucionais autorizados</td>
+<td>Poder de editar toda chamada ou aprovar tudo</td>
+</tr>
+<tr>
+<td>Coordenação</td>
+<td>Professores/segmentos vinculados, revisão de planos</td>
+<td>Outras escolas ou segmentos</td>
+</tr>
+<tr>
+<td>Professor</td>
+<td>Turmas e aulas atribuídas</td>
+<td>Turmas de colegas e painel financeiro</td>
+</tr>
+<tr>
+<td>Secretaria</td>
+<td>Cadastros e frequência conforme concessão</td>
+<td>Devolutivas confidenciais e configurações técnicas</td>
+</tr>
+<tr>
+<td>Substituto</td>
+<td>Aulas e período determinados</td>
+<td>Acesso após expirar o vínculo</td>
+</tr>
+</tbody></table>
+<p>No pacote atual, o backend libera <strong>somente administradores autorizados</strong>. Os outros perfis não estão implementados nem liberados. Esconder um botão não protege uma API; os testes precisam tentar a chamada diretamente.</p>
+<h2>3. Tela separada: Infraestrutura e consumo</h2>
+<p>Acesse esse item no menu do piloto. Ela contém:</p>
+<ol>
+<li>Tamanho dos dados e índices do Firestore em MiB/GiB.</li>
+<li>Porcentagem do limite interno definido pela escola.</li>
+<li>Comparação informativa com a referência de 1 GiB da franquia elegível.</li>
+<li>Leituras, gravações e exclusões observadas nas últimas 24 horas móveis.</li>
+<li>Armazenamento de backups e PITR, quando houver amostras.</li>
+<li>Fonte da métrica, projeto, banco e horário da medição/coleta.</li>
+<li>Configuração do limite interno por administrador e registro de auditoria.</li>
+<li>Aviso visual a partir de 80%; acima de 100%, indicação de limite interno excedido.</li>
+</ol>
+<p><strong>Exemplo ilustrativo, não consumo real da sua escola:</strong> 256 MiB de dados e índices para referência de 1 GiB = <code>256 ÷ 1.024 × 100 = 25%</code>.</p>
+<p>O limite de 1 GiB pode significar referência de franquia, e um limite de 5 GiB pode ser uma escolha administrativa. Nenhum deles deve ser rotulado como a capacidade total do Firestore no plano pago. A barra não interrompe gravações nem impede cobranças.</p>
+<p>O coletor consulta <code>firestore.googleapis.com/storage/data_and_index_storage_bytes</code>. Backups e PITR têm métricas separadas. Leituras usam <code>document/read_ops_count</code>; gravações, <code>document/write_ops_count</code>; exclusões, <code>document/delete_ops_count</code>. O filtro restringe a base selecionada. Se vários aplicativos compartilham essa base, o total inclui todos eles. Separação por app exige projetos/bases distintos ou contabilidade da aplicação.</p>
+<p>O backend retorna <code>null</code> quando não recebe dado verificável. Não há varredura dos alunos para calcular tamanho. O cache dura até 3 minutos; uma medição de armazenamento com mais de 15 minutos é sinalizada como antiga. As 24 horas móveis <strong>não são a janela diária da franquia</strong>; por isso o pacote não calcula “% da cota diária de leituras” usando esse período.</p>
+<p>Ainda não implementado: custo do mês via exportação de faturamento, gráfico histórico persistente, consumo de Drive/Cloud Storage, limites de IA, notificações externas e teste de restauração. O painel informa essas ausências. Tamanho de backup não prova que ele pode ser restaurado.</p>
+<p>Fontes: <a href="https://docs.cloud.google.com/monitoring/api/metrics_gcp_d_h#firestore">métricas Firestore</a>, <a href="https://firebase.google.com/docs/firestore/monitor-usage">monitoramento e diferenças do faturamento</a>, <a href="https://docs.cloud.google.com/monitoring/api/resources#tag_firestore.googleapis.com/Database">recursos monitorados</a>.</p>
+<h2>4. Preparar o computador e o GitHub</h2>
+<h3>4.1 Testar sem contratar serviços</h3>
+<ol>
+<li>Instale Node.js 22 e Git. O runtime configurado das Cloud Functions é Node 22.</li>
+<li>Extraia o ZIP para uma pasta, por exemplo <code>Documentos/elo-pedagogico</code>.</li>
+<li>Abra a pasta no VS Code e selecione Terminal → Novo terminal.</li>
+<li>Execute <code>npm ci</code>. Aguarde a instalação terminar.</li>
+<li>Execute <code>npm test</code> para verificar as regras do piloto e os cálculos.</li>
+<li>Execute <code>npm run dev</code> e abra o endereço informado, normalmente <code>http://localhost:5173</code>.</li>
+<li>Sem <code>.env</code>, o sistema mostra o modo local. Use somente nomes fictícios. Atualizar a página conserva os dados neste navegador, mas outro computador não os verá.</li>
+<li>Abra <strong>Infraestrutura e consumo</strong>: os dados aparecerão indisponíveis até conectar Firebase. Isso é esperado.</li>
+</ol>
+<h3>4.2 Guardar no GitHub</h3>
+<ol>
+<li>No GitHub, selecione New repository.</li>
+<li>Dê o nome <code>elo-pedagogico</code> e escolha <strong>Private</strong> para começar.</li>
+<li>Crie o repositório vazio. Não inicialize um README remoto se vai enviar a pasta completa.</li>
+<li>Na pasta local, execute:</li>
+</ol>
+<pre><code class="language-bash">git init
+git add .
+git commit -m &quot;Estrutura inicial da plataforma pedagogica&quot;
+git branch -M main
+git remote add origin https://github.com/SEU-USUARIO/elo-pedagogico.git
+git push -u origin main
+</code></pre>
+<ol start="5">
+<li>Substitua <code>SEU-USUARIO</code> pelo seu nome real do GitHub. Autentique pelo mecanismo normal do Git/GitHub; não coloque token na URL.</li>
+<li>Confirme que <code>.env</code>, <code>node_modules</code>, contas de serviço e senhas não foram enviados. O <code>.gitignore</code> já exclui esses caminhos comuns.</li>
+<li>A aba Actions executará testes e compilação. Falha deve ser corrigida antes do deploy.</li>
+<li>Não envie apenas o ZIP para a raiz esperando que o aplicativo rode. O repositório precisa conter os arquivos extraídos, incluindo <code>package.json</code>, <code>src</code>, <code>functions</code> e <code>.github</code>.</li>
+</ol>
+<p>O workflow <code>pages-demo.yml</code> é manual e <strong>publica somente a demonstração sem Firebase</strong>. Para acioná-lo, seria necessário configurar Pages → Source: GitHub Actions e executar o workflow. Ele não foi executado nesta entrega. Para o sistema institucional, prefira a hospedagem apropriada ao backend escolhido. GitHub Pages tem restrições para negócios online e SaaS comercial; avalie os termos antes de usar.</p>
+<p>Fontes: <a href="https://vite.dev/guide/static-deploy.html">build e deploy Vite</a>, <a href="https://docs.github.com/en/enterprise-cloud%40latest/pages/getting-started-with-github-pages/github-pages-limits">restrições do Pages</a>.</p>
+<h2>5. Caminho A — Firebase, passo a passo</h2>
+<h3>5.1 Criar um ambiente isolado</h3>
+<ol>
+<li>Acesse <a href="https://console.firebase.google.com/">Firebase Console</a>.</li>
+<li>Crie um projeto exclusivo de teste, por exemplo <code>escola-pedagogico-dev</code>. Não reutilize o banco de outro app nesta primeira configuração.</li>
+<li>Registre o ID exato gerado; nome exibido e ID podem ser diferentes.</li>
+<li>Analytics é opcional para este piloto.</li>
+<li>Em Configurações do projeto → Seus aplicativos, registre um aplicativo Web.</li>
+<li>Copie <code>apiKey</code>, <code>authDomain</code>, <code>projectId</code> e <code>appId</code> do objeto de configuração.</li>
+<li>Na pasta do projeto, copie <code>.env.example</code> para <code>.env</code> e preencha os quatro campos <code>VITE_FIREBASE_*</code> correspondentes. Esses campos web identificam o projeto, não concedem privilégios administrativos. Regras e backend continuam necessários.</li>
+<li>Use <code>VITE_FUNCTIONS_REGION=southamerica-east1</code> se mantiver a região padrão do pacote. Frontend e funções precisam concordar.</li>
+</ol>
+<h3>5.2 Criar o banco e o login</h3>
+<ol>
+<li>Em Firestore Database, crie a base <strong>Standard</strong>, modo nativo, ID <code>(default)</code>.</li>
+<li>Escolha a região com cuidado; considere latência, preço e requisitos da escola. O exemplo das funções usa São Paulo. Não há promessa de franquias regionais para outros produtos.</li>
+<li>Selecione regras restritas/produção, não regras públicas de teste.</li>
+<li>Em Authentication → Sign-in method, habilite Google e Email/Password.</li>
+<li>Informe o e-mail de suporte exigido pelo provedor Google.</li>
+<li>Em Authentication → Settings → Authorized domains, inclua o domínio de hospedagem. Para desenvolvimento, verifique se <code>localhost</code> está autorizado; adicione-o apenas no projeto de teste se necessário.</li>
+<li>Para e-mail/senha, crie o usuário de teste na área Users. Não existe cadastro público no frontend do pacote.</li>
+<li>Configure/valide os modelos de recuperação e verificação de e-mail. O frontend oferece recuperação e envio da verificação.</li>
+</ol>
+<p>Referências: <a href="https://firebase.google.com/docs/web/setup">registrar app web</a>, <a href="https://firebase.google.com/docs/auth/web/google-signin">login Google</a>, <a href="https://firebase.google.com/docs/auth/web/email-link-auth">domínios e fluxos de e-mail</a>.</p>
+<h3>5.3 Ativar backend e publicar</h3>
+<p>Cloud Functions exige configuração de faturamento compatível com implantação. Este pacote usa Blaze para o backend; franquias não dispensam o vínculo de faturamento. Configure orçamento antes de implantar. <strong>Alerta de orçamento não é teto rígido de despesa.</strong></p>
+<ol>
+<li>No projeto de teste, habilite o plano Blaze se ainda não estiver habilitado e configure avisos de orçamento no Google Cloud Billing.</li>
+<li>Instale as ferramentas:</li>
+</ol>
+<pre><code class="language-bash">npm install -g firebase-tools
+firebase login
+firebase use --add
+npm ci --prefix functions
+</code></pre>
+<ol start="3">
+<li>Selecione o projeto de teste e dê a ele o alias <code>dev</code>. O comando cria <code>.firebaserc</code> com o vínculo.</li>
+<li>Copie <code>functions/.env.example</code> para <code>functions/.env.SEUIDDOPROJETO</code>. Substitua <code>SEUIDDOPROJETO</code> pelo ID exato, sem colchetes.</li>
+<li>Mantenha <code>FIRESTORE_DATABASE_ID=(default)</code> e <code>STORAGE_BUDGET_BYTES=1073741824</code> inicialmente. O segundo valor é referência interna, ajustável pela tela.</li>
+<li>Compile e publique as regras e funções:</li>
+</ol>
+<pre><code class="language-bash">npm --prefix functions run build
+firebase deploy --only firestore,functions --project dev
+</code></pre>
+<ol start="7">
+<li>O comando utiliza a identidade da sua sessão de deploy. O servidor usa a conta de execução, sem chave administrativa embutida no frontend.</li>
+<li>Compile a interface após preencher o <code>.env</code> e publique:</li>
+</ol>
+<pre><code class="language-bash">npm run build
+firebase deploy --only hosting --project dev
+</code></pre>
+<ol start="9">
+<li>Abra a URL que o Firebase retornar e confirme o domínio na lista de autorizados do Authentication.</li>
+<li>Se alterar o <code>.env</code> da interface, faça novo build e deploy. O Vite incorpora as variáveis públicas na compilação.</li>
+</ol>
+<p>Não copie as regras deste pacote sobre o banco de um sistema existente: elas negam todo acesso direto do cliente. No projeto novo, isso é intencional; o backend valida todas as operações e usa o Admin SDK. Em uma migração, as regras precisam ser integradas e testadas, não substituídas cegamente.</p>
+<p>Fontes: <a href="https://firebase.google.com/docs/functions/get-started">primeiras funções</a>, <a href="https://firebase.google.com/docs/functions/manage-functions">runtimes e configuração</a>.</p>
+<h3>5.4 Autorizar o primeiro administrador</h3>
+<ol>
+<li>Entre no aplicativo com sua conta Google ou com e-mail/senha já criado.</li>
+<li>O primeiro acesso pode dizer “sem autorização”; o UID será exibido. Isso confirma apenas a identidade.</li>
+<li>No Firestore Console, crie a coleção <code>systemMembers</code>.</li>
+<li>Crie um documento cujo ID seja <strong>exatamente o UID</strong> do usuário.</li>
+<li>Adicione <code>role</code> como string <code>admin</code> e <code>active</code> como boolean <code>true</code>.</li>
+<li>Se o login for e-mail/senha, clique para enviar verificação, confirme o e-mail e volte ao app.</li>
+<li>Clique em <strong>Verificar autorização novamente</strong>. O backend confere a autorização no Firestore a cada operação.</li>
+<li>Para revogar, mude <code>active</code> para boolean <code>false</code>. Isso não apaga o histórico. O próximo pedido será negado, embora informação já carregada no navegador não possa ser recolhida retroativamente.</li>
+<li>Não crie esse documento por um botão que o próprio usuário possa acionar livremente. Só o operador autorizado do projeto deve promovê-lo.</li>
+</ol>
+<h3>5.5 Ligar as métricas reais</h3>
+<ol>
+<li>Abra Google Cloud Console no MESMO projeto.</li>
+<li>Em APIs e serviços → Biblioteca, habilite <strong>Cloud Monitoring API</strong>.</li>
+<li>Localize a função <code>getInfrastructure</code> em Cloud Run/Cloud Functions e identifique a conta de serviço de execução nas configurações.</li>
+<li>Em IAM, conceda a essa conta a função <strong>Monitoring Viewer</strong> (<code>roles/monitoring.viewer</code>) no projeto monitorado. Não é necessário conceder Owner.</li>
+<li>Garanta que a conta de execução tem acesso aos documentos internos usados pelo backend. Para um projeto com conta dedicada, conceda os privilégios de dados necessários; a implantação pode exigir permissões adicionais do operador, diferentes das permissões de execução.</li>
+<li>Faça uma alteração fictícia no piloto para gerar operações e aguarde a emissão das métricas.</li>
+<li>Abra <strong>Infraestrutura e consumo</strong> e clique em Atualizar. Confira o projeto, banco e horário.</li>
+<li>Compare armazenamento e operações com o console oficial. Uma ausência de amostra pode ser atraso, serviço ainda sem dados ou configuração faltando; não conclua que o uso é zero.</li>
+<li>Ajuste o limite interno na própria tela. Por exemplo, 2 GiB = <code>2 × 1.073.741.824 = 2.147.483.648 bytes</code>.</li>
+<li>Para erros, consulte os logs da função. Verifique IAM, Monitoring API, ID de projeto e filtro <code>database_id</code> antes de alterar código.</li>
+</ol>
+<p>O pacote não foi conectado à sua conta Firebase nesta conversa. As funções foram preparadas para implantação, mas o teste integrado depende desses passos e das suas permissões.</p>
+<h3>5.6 Testes antes de liberar a escola</h3>
+<ul>
+<li>Conta não autorizada deve conseguir autenticar a identidade e continuar sem acesso aos dados.</li>
+<li>Usuário sem e-mail verificado deve receber negativa.</li>
+<li>Remover <code>active</code> deve negar o próximo pedido.</li>
+<li>Duas abas alterando a mesma revisão devem gerar conflito, não perda silenciosa.</li>
+<li>Concluir chamada sem todos os registros deve falhar.</li>
+<li>Repetir turma/data/horário deve atualizar a ocorrência, não criar outra.</li>
+<li>Plano aprovado deve permanecer preservado; alterações partem de cópia.</li>
+<li>Tela de infraestrutura não deve retornar métricas a não administradores, mesmo via chamada direta.</li>
+<li>Antes de incluir professores: implementar papéis/escopos, testar banco por entidade, backup e restauração, anexos privados e dispositivos móveis.</li>
+</ul>
+<h2>6. Caminho B — Supabase/PostgreSQL, passo a passo</h2>
+<p>Este caminho é alternativo. Os arquivos SQL ajudam a construir o banco, mas a interface Firebase do pacote não passa a usar Supabase só por executá-los. É preciso escrever o adaptador de dados e autenticação correspondente.</p>
+<ol>
+<li>Acesse <a href="https://supabase.com/">Supabase</a> e crie uma organização/projeto de teste.</li>
+<li>Escolha região e uma senha forte para o banco. Guarde a senha fora do GitHub.</li>
+<li>Aguarde o provisionamento e abra <strong>SQL Editor</strong>.</li>
+<li>Em projeto novo e vazio, execute <code>sql/01_nucleo_postgres.sql</code>. Ele cria escolas, membros, turmas, alunos, matrículas, planos, versões, aulas, frequências e auditoria. Habilita RLS e não cria liberação pública.</li>
+<li>Execute <code>sql/02_supabase_admin_piloto.sql</code>. Ele permite somente administradores ativos da própria escola. Usuários não podem editar seus privilégios nem escrever diretamente versões e auditoria.</li>
+<li>Em Authentication, crie/convidе seu usuário administrativo e copie o UUID do usuário.</li>
+<li>No SQL Editor, crie sua escola e anote o ID retornado:</li>
+</ol>
+<pre><code class="language-sql">insert into public.schools(name)
+values (&#39;Escola de teste&#39;)
+returning id;
+</code></pre>
+<ol start="8">
+<li>Crie o vínculo usando os valores reais, substituindo os textos ilustrativos:</li>
+</ol>
+<pre><code class="language-sql">insert into public.members(school_id,user_id,role,active)
+values (&#39;UUID-DA-ESCOLA&#39;,&#39;UUID-DO-USUARIO&#39;,&#39;admin&#39;,true);
+</code></pre>
+<ol start="9">
+<li>Configure Site URL e URLs de redirecionamento em Authentication para o domínio do seu app. Ative Google se desejar e configure as credenciais OAuth no painel do provedor.</li>
+<li>Obtenha a URL do projeto e a chave <strong>publishable</strong> nas configurações de API. A chave publicável pode ir no frontend com RLS adequada. Chaves secretas e a antiga <code>service_role</code> ficam exclusivamente no backend.</li>
+<li>No projeto de interface que usará Supabase, instale <code>@supabase/supabase-js</code> e inicialize <code>createClient(URL, PUBLISHABLE_KEY)</code>. Faça login antes das consultas. Substitua <code>src/data.ts</code> e <code>src/firebase.ts</code> por adaptadores Supabase; este passo exige desenvolvimento, não simples troca de variável.</li>
+<li>Faça uma consulta real de <code>classes</code> como administrador. Crie um usuário comum sem vínculo e confirme que ele não recebe linhas nem consegue inserir.</li>
+<li>Teste duas escolas diferentes para evitar vazamento entre instituições. Só depois adicione políticas por turma para docentes e segmento para coordenação.</li>
+<li>Para aprovar planos ou fechar chamadas, use função transacional/API: validar estado, gravar versão/correção e auditoria juntos. O SQL inicial não implementa todo esse fluxo; não o trate como sistema institucional pronto.</li>
+<li>Abra <code>sql/03_monitoramento_postgres.sql</code> no SQL Editor para consultar tamanho total e por tabela. No app, exponha esse resultado somente por endpoint administrativo autenticado.</li>
+<li>Para uploads, crie bucket privado e políticas equivalentes às da escola/turma. Não use arquivos públicos para registros escolares.</li>
+<li>Configure backup conforme o plano e restaure em projeto de teste. A restauração precisa ser validada por contagem, vínculos e amostragem de documentos.</li>
+</ol>
+<p>A consulta <code>pg_database_size(current_database())</code> mede o banco atual. Disco contratado, WAL, arquivos temporários, backups e Storage de anexos são medidas diferentes. Use o painel oficial para comparar consumo faturável. Não subtraia arquivos de alunos ou invente percentual do disco usando apenas tabelas visíveis.</p>
+<p>Fontes: <a href="https://supabase.com/docs/guides/getting-started/quickstarts/reactjs">React + Supabase</a>, <a href="https://supabase.com/docs/guides/auth/quickstarts/react">Auth</a>, <a href="https://supabase.com/docs/guides/database/postgres/row-level-security">RLS</a>, <a href="https://supabase.com/docs/guides/platform/database-size">tamanho do banco e disco</a>.</p>
+<h2>7. Caminho C — Neon/PostgreSQL, passo a passo</h2>
+<p>Escolha este caminho se quiser separar o banco do backend com mais liberdade. Este guia usa uma API própria como fronteira de acesso; não depende de um recurso de autenticação específico do Neon.</p>
+<ol>
+<li>Crie a conta no <a href="https://console.neon.tech/">Neon Console</a> e um projeto de teste.</li>
+<li>Escolha região, versão de PostgreSQL e nome da base, conforme as opções do painel.</li>
+<li>Mantenha ambientes de desenvolvimento e produção separados. Uma branch pode facilitar testes, mas não substitui uma política completa de backup.</li>
+<li>Abra o SQL Editor na branch de desenvolvimento e execute <code>sql/01_nucleo_postgres.sql</code>.</li>
+<li><strong>Não execute o arquivo 02 do Supabase</strong>: ele depende de <code>auth.uid()</code> e do papel <code>authenticated</code>, específicos daquela integração.</li>
+<li>Na opção Connect, obtenha a conexão apropriada. Para um backend serverless, avalie a conexão com pooling recomendada pelo console.</li>
+<li>Salve <code>DATABASE_URL</code> exclusivamente nas variáveis secretas do backend. Nunca use prefixo <code>VITE_</code> para essa URL. Não coloque senha ou URL completa em arquivos do GitHub.</li>
+<li>Construa a API em serviço com execução de código (por exemplo, Cloud Run ou outro backend contratado). GitHub Pages não executa esse servidor.</li>
+<li>Configure identidade com um provedor. A API valida o token, resolve o usuário e consulta <code>members</code> para conferir escola, função e acesso ativo antes da operação.</li>
+<li>Separe a credencial de migração da credencial de execução. Não entregue ao backend público uma conexão com o proprietário de todas as tabelas como se RLS o limitasse automaticamente. Proprietários e papéis com BYPASSRLS podem contornar RLS; use papel limitado e políticas validadas ou autorização explícita rigorosa na API.</li>
+<li>Implemente transações para frequência, aprovação e auditoria; use as restrições únicas e chaves estrangeiras do schema como segunda proteção.</li>
+<li>Execute <code>sql/03_monitoramento_postgres.sql</code> via consulta de administração. A interface recebe somente bytes, limites e percentuais, nunca credenciais.</li>
+<li>Teste pool, conexões simultâneas e retorno após inatividade. Limites de computação também importam, não só gigabytes.</li>
+<li>Configure backup/exportação e faça restauração em destino isolado. Use as instruções oficiais de <code>pg_dump</code>/<code>pg_restore</code>, sem colar senha em logs ou capturas de tela.</li>
+<li>Somente depois de testar autorização e restauração, configure o frontend para sua API e faça deploy.</li>
+</ol>
+<p>Fontes: <a href="https://neon.com/docs/get-started/signing-up">console Neon</a>, <a href="https://neon.com/migration">migração PostgreSQL</a>, <a href="https://github.com/neondatabase/website/blob/main/content/docs/manage/backup-pg-dump.md">backup e exportação</a>.</p>
+<h2>8. Custos e dimensionamento sem adivinhar o tamanho da escola</h2>
+<table>
+<thead>
+<tr>
+<th>Serviço</th>
+<th>Referência consultada</th>
+<th>Como interpretar</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Firestore</td>
+<td>Franquia de 1 GiB; 50.000 leituras/dia; 20.000 escritas/dia; uma base gratuita por projeto</td>
+<td>Não inclui automaticamente Functions, backup, IA, anexos ou todos os tipos de operação</td>
+</tr>
+<tr>
+<td>Supabase Free</td>
+<td>500 MB de banco por projeto</td>
+<td>Útil para teste; não comparar diretamente com todos os itens de disco de planos pagos</td>
+</tr>
+<tr>
+<td>Supabase Pro</td>
+<td>A partir de US$ 25/mês; 8 GB de disco por projeto nas condições do plano</td>
+<td>Projetos adicionais, compute e excedentes podem aumentar o total</td>
+</tr>
+<tr>
+<td>Neon Free</td>
+<td>Página consultada informa 1 GB de armazenamento por projeto e 100 CU-h/mês por projeto</td>
+<td>Computação, retenção, tráfego e outros recursos têm condições próprias</td>
+</tr>
+<tr>
+<td>Neon pago</td>
+<td>Cobrança por uso</td>
+<td>Não tratar “gasto típico” divulgado como mensalidade fixa</td>
+</tr>
+</tbody></table>
+<p>Fontes: <a href="https://cloud.google.com/firestore/pricing">Firestore</a>, <a href="https://firebase.google.com/pricing">Firebase</a>, <a href="https://supabase.com/pricing">Supabase</a>, <a href="https://neon.com/pricing">Neon</a>.</p>
+<p><strong>Hipótese de simulação:</strong> 50 profissionais × 400 leituras/dia = 20.000 leituras/dia. 50 × 80 escritas/dia = 4.000 escritas/dia. Essas operações isoladas caberiam nas franquias citadas, nas condições de elegibilidade. Não significam custo total zero.</p>
+<p>Para estimar armazenamento, a escola deve fornecer quantidade de alunos, turmas, aulas/dia, dias letivos, anos de retenção, tamanho médio real de registros e anexos. Medir uma amostra do banco é mais confiável que atribuir “1 KB por aluno”: índices, nomes de campos, histórico e estruturas internas também ocupam espaço.</p>
+<p>Total mensal = banco + funções/API + hospedagem + arquivos + backups + tráfego + IA + eventuais licenças. O custo exato permanece não confirmado sem volumes, região e planos escolhidos.</p>
+<h2>9. Drive, seus outros apps e login único</h2>
+<p>Confirme primeiro se você paga <strong>Google One pessoal</strong> ou <strong>Google Workspace</strong>. Meu Drive usa propriedade individual; uma pasta compartilhada não transfere automaticamente propriedade nem cota. Drives compartilhados elegíveis permitem propriedade organizacional, o que ajuda na saída de funcionários.</p>
+<p>O sistema deve registrar proprietário, ID do arquivo, permissões e política de saída. Remover alguém da plataforma não remove por si só um compartilhamento direto do Drive. Essa revogação precisa fazer parte do processo.</p>
+<p>Drive é para documentos, não para hospedar o Firestore. Cloud Storage exige plano Blaze nas condições atuais; tem regras e cobrança próprias. Uso padrão da Drive API não tem custo adicional segundo a documentação consultada, mas há previsão de cobrança por excesso de cotas em 2026; reconfirme ao implantar.</p>
+<table>
+<thead>
+<tr>
+<th>Integração</th>
+<th>O que entrega</th>
+<th>Trabalho necessário</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Atalho</td>
+<td>Abre outro app</td>
+<td>URL configurada</td>
+</tr>
+<tr>
+<td>Identidade compartilhada</td>
+<td>Mesmo identificador de usuário</td>
+<td>Provedor e mapeamento de IDs</td>
+</tr>
+<tr>
+<td>Login único</td>
+<td>Navegação autenticada adequada entre apps</td>
+<td>Fluxo de sessão por domínio, redirecionamentos autorizados e revogação</td>
+</tr>
+<tr>
+<td>Dados compartilhados</td>
+<td>Cadastros e ações sincronizados</td>
+<td>API autenticada, sistema fonte, idempotência, retentativas e logs</td>
+</tr>
+</tbody></table>
+<p>Compartilhar o projeto Firebase não mantém automaticamente a sessão entre domínios diferentes. Não passe tokens nas URLs. Prefira centralizar identidade, manter cada app com escopos explícitos e decidir quem é responsável por aluno, turma, matrícula e frequência.</p>
+<p>Fontes: <a href="https://developers.google.com/workspace/drive/api/guides/about-shareddrives">drives compartilhados</a>, <a href="https://developers.google.com/workspace/drive/api/guides/limits">Drive API</a>, <a href="https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024">Cloud Storage</a>.</p>
+<h2>10. O que falta para concluir a etapa institucional</h2>
+<p>O pacote entrega código inicial, fluxos demonstrativos e a tela de infraestrutura configurável. Não foram criados projetos ou bancos nas suas contas externas, nem enviado código ao seu GitHub.</p>
+<p>Antes do uso real: definir segmentos e volumes; migrar o piloto para entidades separadas; implementar matrículas/transferências e papéis completos; convites, anexos e comentários por campo; autosave com conflitos; prazos e aulas previstas; privacidade/retenção com a escola; backup e restauração testados; revisão visual no celular; teste de API sem acesso indevido. IA, Drive e integrações são etapas posteriores.</p>
+<p>Para decidir a próxima implantação, informe: tipo da conta Google, quantidade aproximada de professores/alunos, segmentos, nome do sistema escolar existente e tecnologia/domínios dos apps próprios. Não envie senhas nem contas de serviço.</p>
+<h2>15. Identidade ELO Novo Mundo</h2>
+<p>Esta revisão inclui a identidade <strong>Educação, Ligação e Organização</strong>, aplicada à tela de entrada e ao painel. Abra <code>COMECE_POR_AQUI.html</code> para visualizar as artes. Os arquivos prontos ficam em <code>public/brand/</code>, e o guia de aplicação em <code>docs/IDENTIDADE_VISUAL.md</code>. A galeria também está disponível no menu do app. A atualização visual não altera os requisitos de implantação, permissões ou as limitações do piloto descritas acima.</p>
+</html>

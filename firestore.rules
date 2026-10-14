@@ -1,0 +1,8 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Kit usa Cloud Functions para todas as operações.
+    // Nunca permita que o navegador altere systemMembers.
+    match /{document=**} { allow read, write: if false; }
+  }
+}
