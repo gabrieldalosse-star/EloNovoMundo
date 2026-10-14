@@ -1,0 +1,1 @@
+{"name":"elo-functions","private":true,"main":"lib/index.js","engines":{"node":"22"},"scripts":{"build":"tsc","deploy":"firebase deploy --only functions"},"dependencies":{"firebase-admin":"^13.0.0","firebase-functions":"^6.0.0","@google-cloud/monitoring":"^4.0.0"},"devDependencies":{"typescript":"^5.9.3","@types/node":"^22.0.0"}}

@@ -1,0 +1,30 @@
+{
+  "brand": "ELO Novo Mundo",
+  "meaning": "Educação, Ligação e Organização",
+  "colors": {
+    "navy": "#102A56",
+    "blue": "#2165DB",
+    "green": "#16A075",
+    "gold": "#F2C64D",
+    "coral": "#EF8956",
+    "ink": "#162D50",
+    "muted": "#596A82",
+    "paper": "#F4F7FC"
+  },
+  "font": "Manrope",
+  "radius": {
+    "small": 8,
+    "card": 14,
+    "hero": 20
+  },
+  "space": [
+    4,
+    8,
+    12,
+    16,
+    24,
+    32,
+    48,
+    64
+  ]
+}
